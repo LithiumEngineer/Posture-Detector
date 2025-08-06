@@ -7,7 +7,22 @@ import subprocess
 import math
 import time
 
+
 last_bad = [-1, -1] # -1 = last recorded posture is good
+
+def spin_motor():
+    try:
+        r = requests.post("http://192.168.0.139:5000/spin_motor", timeout=5)
+        print("Spin motor response:", r.text)
+    except requests.exceptions.RequestException as e:
+        print("Spin motor request failed:", e)
+
+def stop_motor():
+    try:
+        r = requests.post("http://192.168.0.139:5000/stop_motor", timeout=5)
+        print("Stop motor response:", r.text)
+    except requests.exceptions.RequestException as e:
+        print("Stop motor request failed:", e)
 
 def draw_points(frame, points, conf): 
     y, x, c = frame.shape
@@ -30,7 +45,10 @@ def draw_connections(frame, edges, points, conf):
             if desc == "spine":  
                 if calculate_angle([x1, y1], [x2, y2], [0, y2]) > 90:  
                     cv2.line(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 0, 255), 4)
-                    if (last_bad[i] != -1 and int(time.time()) - last_bad[i] >= 30): 
+                    if(last_bad[i] != -1 and int(time.time()) - last_bad[i] >= 60):
+                        spin_motor()
+                        last_bad = -1
+                    elif (last_bad[i] != -1 and int(time.time()) - last_bad[i] >= 30): 
                         send_notification("Check posture", "Spine") 
                         last_bad[i] = -1
                         
@@ -39,6 +57,7 @@ def draw_connections(frame, edges, points, conf):
                 else:
                     cv2.line(frame, (int(x1), int(y1)), (int(x2), int(y2)), (0, 255, 0), 4)
                     last_bad[i] = -1
+                    stop_motor()
 
 def calculate_angle(a, b, c): 
     v1 = [a[0] - b[0], a[1] - b[1]]
